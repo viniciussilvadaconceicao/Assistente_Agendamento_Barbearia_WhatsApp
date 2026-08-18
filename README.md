@@ -40,23 +40,7 @@ A solução utiliza o WhatsApp como interface de atendimento.
 O cliente envia uma mensagem e o sistema conduz a conversa
 através de um fluxo definido:
 
-Cliente
-   ↓
-Escolhe serviço
-   ↓
-Escolhe barbeiro
-   ↓
-Escolhe data
-   ↓
-Consulta horários disponíveis
-   ↓
-Escolhe horário
-   ↓
-Confirma agendamento
-   ↓
-Agendamento salvo no banco
-   ↓
-Confirmação enviada pelo WhatsApp
+Cliente ->Escolhe serviço ->Escolhe barbeiro ->Escolhe data ->Consulta horários disponíveis ->Escolhe horário ->Confirma agendamento ->Agendamento salvo no banco ->Confirmação enviada pelo WhatsApp
 
 ## Arquitetura
 
