@@ -1,45 +1,94 @@
 # Barbearia Bot
 
-> Sistema de agendamento automatizado e gestão operacional para barbearias via WhatsApp Cloud API.
+Sistema backend para agendamento de horarios em barbearias pelo WhatsApp.
 
-O **Barbearia Bot** é uma aplicação backend em Node.js que centraliza o atendimento ao cliente e a gestão do estabelecimento dentro do WhatsApp, eliminando a necessidade de aplicativos externos ou painéis web intermediários.
+O projeto permite que clientes agendem horarios de forma automatizada e que o administrador acompanhe e controle a agenda pelo proprio WhatsApp.
 
----
+## Objetivo
 
-## 🛠️ Tecnologias Utilizadas
+Automatizar o processo de agendamento de uma barbearia, reduzindo o atendimento manual e evitando conflitos de horarios.
 
-- **Linguagem / Runtime:** Node.js (JavaScript)
-- **Framework Web:** Express.js
-- **Banco de Dados:** PostgreSQL
-- **Integração Externa:** WhatsApp Cloud API (Meta)
+## Tecnologias
 
----
+- Node.js
+- Express.js
+- PostgreSQL
+- WhatsApp Cloud API
 
-## 🎯 Objetivo e Funcionamento
+## Como Funciona
 
-O sistema reduz a intervenção manual em agendamentos, resolvendo problemas de atraso no atendimento e conflitos de horários.
+O sistema recebe mensagens pelo webhook do WhatsApp e identifica o telefone de quem enviou a mensagem.
 
-A aplicação utiliza um **roteador por telefone** no Webhook do WhatsApp:
+Se o numero for do administrador, o sistema abre o fluxo administrativo. Caso contrario, abre o fluxo do cliente.
 
-* **Fluxo Cliente:** Permite consultar catálogo de serviços, selecionar barbeiro, consultar horários disponíveis em tempo real e confirmar o agendamento no banco de dados.
-* **Fluxo Administrador:** Reconhece automaticamente o número do gestor (configurado via variável de ambiente) e libera comandos para consulta de agenda, bloqueio/liberação de horários e cancelamentos.
+```txt
+WhatsApp
+-> Webhook
+-> Roteador por telefone
+-> Fluxo Cliente ou Fluxo Administrador
+-> PostgreSQL
+```
 
----
+## Fluxo Do Cliente
 
-## 📂 Organização do Código (`src/`)
+O cliente pode:
 
-- `servidor.js`: Inicialização do servidor HTTP Express.
-- `nucleo/`: Webhook, roteamento de mensagens por telefone e gestão de contexto do bot.
-- `fluxos/`: Lógica de conversa do Cliente e do Administrador.
-- `servicos/`: Comunicação com a API do WhatsApp.
-- `dados/`: Camada de acesso e persistência no PostgreSQL (Agendamentos, Clientes, Serviços, Barbeiros).
-- `config/`: Conexão com o banco de dados.
+- ver servicos;
+- escolher barbeiro;
+- escolher data;
+- escolher horario disponivel;
+- confirmar agendamento;
+- consultar seus agendamentos;
+- cancelar agendamento.
 
----
+## Fluxo Do Administrador
 
-## ⚙️ Configuração do Ambiente
+O administrador pode:
 
-Crie um arquivo `.env` na raiz do projeto contendo:
+- ver agenda por data;
+- bloquear horario;
+- liberar horario;
+- cancelar agendamento.
+
+O numero do administrador e configurado pela variavel `WHATSAPP_ADMIN_PHONE`.
+
+## Estrutura Do Projeto
+
+```txt
+src/
+|-- servidor.js
+|-- nucleo/
+|   |-- webhook.js
+|   |-- roteadorFluxo.js
+|   `-- contextoBot.js
+|-- fluxos/
+|   |-- fluxoCliente.js
+|   `-- fluxoAdministrador.js
+|-- servicos/
+|   `-- clienteWhatsApp.js
+|-- dados/
+|   |-- bancoAgendamentos.js
+|   |-- bancoClientes.js
+|   |-- bancoServicos.js
+|   `-- bancoBarbeiros.js
+`-- config/
+    `-- bancoDados.js
+```
+
+## Banco De Dados
+
+O banco possui tabelas para:
+
+- clientes;
+- barbeiros;
+- servicos;
+- agendamentos.
+
+A tabela de agendamentos impede que o mesmo barbeiro tenha dois horarios iguais no mesmo dia.
+
+## Variaveis De Ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
 
 ```env
 PORT=3000
@@ -48,3 +97,28 @@ WHATSAPP_TOKEN=seu_token_aqui
 WHATSAPP_PHONE_NUMBER_ID=seu_id_aqui
 WEBHOOK_VERIFY_TOKEN=seu_verify_token_aqui
 WHATSAPP_ADMIN_PHONE=5522999999999
+```
+
+## Como Executar
+
+Instale as dependencias:
+
+```bash
+npm install
+```
+
+Execute o arquivo `schema.sql` no PostgreSQL.
+
+Inicie o servidor:
+
+```bash
+npm start
+```
+
+## Rotas
+
+```txt
+GET  /          Teste do servidor
+GET  /webhook   Validacao do webhook
+POST /webhook   Recebimento de mensagens
+```
