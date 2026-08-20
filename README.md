@@ -1,71 +1,50 @@
-# Sistema de Agendamento para Barbearia
+# Barbearia Bot
 
-Este projeto consiste no desenvolvimento de um sistema de agendamento
-automatizado para barbearias, utilizando o WhatsApp como principal
-canal de comunicação com o cliente.
+> Sistema de agendamento automatizado e gestão operacional para barbearias via WhatsApp Cloud API.
 
-A proposta é permitir que o cliente realize todo o processo de
-agendamento através de uma conversa no WhatsApp, sem precisar acessar
-um aplicativo específico.
+O **Barbearia Bot** é uma aplicação backend em Node.js que centraliza o atendimento ao cliente e a gestão do estabelecimento dentro do WhatsApp, eliminando a necessidade de aplicativos externos ou painéis web intermediários.
 
-O sistema é composto por duas interfaces principais:
+---
 
-1. Atendimento ao cliente pelo WhatsApp;
-2. Painel administrativo para gerenciamento da barbearia.
+## 🛠️ Tecnologias Utilizadas
 
-O cliente pode consultar os serviços, escolher um barbeiro,
-selecionar uma data e horário disponíveis e confirmar seu agendamento.
+- **Linguagem / Runtime:** Node.js (JavaScript)
+- **Framework Web:** Express.js
+- **Banco de Dados:** PostgreSQL
+- **Integração Externa:** WhatsApp Cloud API (Meta)
 
-O administrador possui acesso às informações da agenda e pode
-gerenciar os serviços, barbeiros e disponibilidade dos horários.
+---
 
-## Problema
+## 🎯 Objetivo e Funcionamento
 
-Muitas barbearias ainda realizam seus agendamentos manualmente
-através de mensagens, o que pode gerar problemas como:
+O sistema reduz a intervenção manual em agendamentos, resolvendo problemas de atraso no atendimento e conflitos de horários.
 
-- demora no atendimento;
-- conflitos de horários;
-- dificuldade para controlar a agenda;
-- necessidade de responder repetidamente às mesmas perguntas;
-- perda de informações durante a conversa.
+A aplicação utiliza um **roteador por telefone** no Webhook do WhatsApp:
 
-O sistema busca reduzir esses problemas através da automação
-do processo de agendamento.
+* **Fluxo Cliente:** Permite consultar catálogo de serviços, selecionar barbeiro, consultar horários disponíveis em tempo real e confirmar o agendamento no banco de dados.
+* **Fluxo Administrador:** Reconhece automaticamente o número do gestor (configurado via variável de ambiente) e libera comandos para consulta de agenda, bloqueio/liberação de horários e cancelamentos.
 
-## Solução
+---
 
-A solução utiliza o WhatsApp como interface de atendimento.
+## 📂 Organização do Código (`src/`)
 
-O cliente envia uma mensagem e o sistema conduz a conversa
-através de um fluxo definido:
+- `servidor.js`: Inicialização do servidor HTTP Express.
+- `nucleo/`: Webhook, roteamento de mensagens por telefone e gestão de contexto do bot.
+- `fluxos/`: Lógica de conversa do Cliente e do Administrador.
+- `servicos/`: Comunicação com a API do WhatsApp.
+- `dados/`: Camada de acesso e persistência no PostgreSQL (Agendamentos, Clientes, Serviços, Barbeiros).
+- `config/`: Conexão com o banco de dados.
 
-Cliente ->Escolhe serviço ->Escolhe barbeiro ->Escolhe data ->Consulta horários disponíveis ->Escolhe horário ->Confirma agendamento ->Agendamento salvo no banco ->Confirmação enviada pelo WhatsApp
+---
 
-## Arquitetura
+## ⚙️ Configuração do Ambiente
 
-O sistema foi dividido em módulos para separar as responsabilidades.
+Crie um arquivo `.env` na raiz do projeto contendo:
 
-WhatsApp
-   ↓
-WhatsApp Cloud API
-   ↓
-Webhook
-   ↓
-Roteador de Fluxo
-   ↓
-Fluxo da Barbearia
-   ↓
-Camada de Dados
-   ↓
-PostgreSQL
-
-Administrador
-      ↓
-Painel Administrativo
-      ↓
-Rotas
-      ↓
-Camada de Dados
-      ↓
-PostgreSQL
+```env
+PORT=3000
+DATABASE_URL=postgresql://usuario:senha@localhost:5432/barbearia
+WHATSAPP_TOKEN=seu_token_aqui
+WHATSAPP_PHONE_NUMBER_ID=seu_id_aqui
+WEBHOOK_VERIFY_TOKEN=seu_verify_token_aqui
+WHATSAPP_ADMIN_PHONE=5522999999999
