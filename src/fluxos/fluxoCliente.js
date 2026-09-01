@@ -124,15 +124,15 @@ async function enviarDiasDisponiveis(telefone, paginaDias = 0) {
 async function enviarMenu(telefone) {
   atualizarEtapa(telefone, 'menu');
   await enviarMensagemInterativa(telefone, criarListaInterativa({
-    texto: '*Barbearia Bot*\n\nComo podemos ajudar?',
+    texto: '💈 *Barbearia do vitinho*\n\nComo podemos ajudar?',
     botao: 'Abrir menu',
     titulo: 'Atendimento',
     linhas: [
-      { id: '1', title: 'Agendar horario' },
-      { id: '2', title: 'Ver servicos' },
-      { id: '3', title: 'Meus agendamentos' },
-      { id: '4', title: 'Cancelar agendamento' },
-      { id: '0', title: 'Encerrar' }
+      { id: '1', title: '📅 Agendar horario' },
+      { id: '2', title: '💇‍♂️ Ver servicos' },
+      { id: '3', title: '⏰ Meus agendamentos' },
+      { id: '4', title: '❌ Cancelar agendamento' },
+      { id: '0', title: '🏠 Encerrar' }
     ]
   }));
 }
