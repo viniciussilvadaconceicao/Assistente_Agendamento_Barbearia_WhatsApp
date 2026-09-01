@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { rotearFluxo } from './roteadorFluxo.js';
 
 const mensagensProcessadas = new Set();
@@ -9,6 +10,33 @@ function extrairTexto(message) {
     message?.interactive?.button_reply?.id ||
     message?.interactive?.list_reply?.id ||
     ''
+  );
+}
+
+function validarAssinaturaWebhook(req) {
+  const appSecret = process.env.META_APP_SECRET;
+  const assinaturaRecebida = req.headers['x-hub-signature-256'];
+
+  if (!appSecret) {
+    console.error('[Webhook] META_APP_SECRET nao configurado.');
+    return false;
+  }
+
+  if (!assinaturaRecebida || !assinaturaRecebida.startsWith('sha256=')) {
+    return false;
+  }
+
+  const assinaturaEsperada = `sha256=${crypto
+    .createHmac('sha256', appSecret)
+    .update(req.rawBody)
+    .digest('hex')}`;
+
+  const bufferRecebido = Buffer.from(assinaturaRecebida);
+  const bufferEsperado = Buffer.from(assinaturaEsperada);
+
+  return (
+    bufferRecebido.length === bufferEsperado.length &&
+    crypto.timingSafeEqual(bufferRecebido, bufferEsperado)
   );
 }
 
@@ -26,6 +54,11 @@ export function verificarWebhook(req, res) {
 
 export async function receberMensagem(req, res) {
   try {
+    if (!validarAssinaturaWebhook(req)) {
+      console.warn('[Webhook] Assinatura invalida ou ausente.');
+      return res.sendStatus(403);
+    }
+
     const entradas = req.body?.entry || [];
 
     for (const entrada of entradas) {
