@@ -43,7 +43,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO servicos (nome, preco, duracao_minutos)
 VALUES
-  ('Corte masculino', 35.00, 30),
+  ('Corte navalhado', 35.00, 30),
   ('Barba', 25.00, 30),
   ('Corte + barba', 55.00, 60),
   ('Sobrancelha', 15.00, 15)

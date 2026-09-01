@@ -157,6 +157,32 @@ async function enviarServicos(telefone) {
   }));
 }
 
+async function enviarServicosComoConsulta(telefone) {
+  const servicos = await listarServicos();
+
+  if (!servicos.length) {
+    return enviarMensagemTexto(telefone, 'Nenhum servico cadastrado.');
+  }
+
+  const linhas = servicos.map((servico) => ({
+    id: `servico_info_${servico.id}`,
+    title: limitarTitulo(servico.nome),
+    description: `R$ ${Number(servico.preco).toFixed(2)} - ${servico.duracao_minutos} min`
+  }));
+
+  linhas.push({
+    id: 'menu',
+    title: 'Voltar ao menu'
+  });
+
+  return enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: '*Servicos disponiveis*\n\nVeja os servicos da barbearia.',
+    botao: 'Ver servicos',
+    titulo: 'Servicos',
+    linhas
+  }));
+}
+
 export async function fluxoCliente(mensagem) {
   const telefone = mensagem.de;
   const texto = mensagem.texto.trim();
@@ -179,8 +205,7 @@ export async function fluxoCliente(mensagem) {
     }
 
     if (texto === '2') {
-      await enviarServicos(telefone);
-      return enviarMenu(telefone);
+      return enviarServicosComoConsulta(telefone);
     }
 
     if (texto === '3') {
