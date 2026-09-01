@@ -11,6 +11,7 @@ import {
 } from '../dados/bancoAgendamentos.js';
 
 const HORARIOS_PADRAO = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+const TIME_ZONE = 'America/Sao_Paulo';
 
 function limitarTitulo(valor) {
   return String(valor).slice(0, 24);
@@ -40,9 +41,48 @@ function formatarData(data) {
   return `${dia}/${mes}/${ano}`;
 }
 
-function proximosDias(quantidade = 5) {
+function obterPartesDataHoraLocal(data = new Date()) {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(data);
+
+  return Object.fromEntries(partes.map((parte) => [parte.type, parte.value]));
+}
+
+function hojeIso() {
+  const partes = obterPartesDataHoraLocal();
+  return `${partes.year}-${partes.month}-${partes.day}`;
+}
+
+function horaAtualMinutos() {
+  const partes = obterPartesDataHoraLocal();
+  return Number(partes.hour) * 60 + Number(partes.minute);
+}
+
+function horarioParaMinutos(horario) {
+  const [hora, minuto] = String(horario).split(':').map(Number);
+  return hora * 60 + minuto;
+}
+
+function filtrarHorariosFuturos(data, horarios) {
+  if (data !== hojeIso()) {
+    return horarios;
+  }
+
+  const agora = horaAtualMinutos();
+  return horarios.filter((horario) => horarioParaMinutos(horario) > agora);
+}
+
+function proximosDias(quantidade = 5, deslocamentoDias = 0) {
   const dias = [];
-  const hoje = new Date();
+  const [ano, mes, dia] = hojeIso().split('-').map(Number);
+  const hoje = new Date(Date.UTC(ano, mes - 1, dia + deslocamentoDias, 12));
 
   for (let i = 0; dias.length < quantidade; i++) {
     const data = new Date(hoje);
@@ -55,6 +95,30 @@ function proximosDias(quantidade = 5) {
   }
 
   return dias;
+}
+
+async function enviarDiasDisponiveis(telefone, paginaDias = 0) {
+  const deslocamentoDias = paginaDias * 7;
+  const dias = proximosDias(5, deslocamentoDias);
+  const lista = dias.map((dia, indice) => ({
+    id: String(indice + 1),
+    title: formatarData(dia)
+  }));
+
+  lista.push({
+    id: 'proxima_semana',
+    title: 'Proxima semana'
+  });
+
+  atualizarDados(telefone, { dias, paginaDias });
+  atualizarEtapa(telefone, 'escolhendo_dia');
+
+  return enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: '*Escolha o dia*',
+    botao: 'Ver dias',
+    titulo: 'Datas disponiveis',
+    linhas: lista
+  }));
 }
 
 async function enviarMenu(telefone) {
@@ -201,23 +265,14 @@ export async function fluxoCliente(mensagem) {
 
     atualizarDados(telefone, { barbeiro });
 
-    const dias = proximosDias();
-    const lista = dias.map((dia, indice) => ({
-      id: String(indice + 1),
-      title: formatarData(dia)
-    }));
-
-    atualizarDados(telefone, { dias });
-    atualizarEtapa(telefone, 'escolhendo_dia');
-    return enviarMensagemInterativa(telefone, criarListaInterativa({
-      texto: '*Escolha o dia*',
-      botao: 'Ver dias',
-      titulo: 'Datas disponiveis',
-      linhas: lista
-    }));
+    return enviarDiasDisponiveis(telefone);
   }
 
   if (sessao.etapa === 'escolhendo_dia') {
+    if (texto === 'proxima_semana') {
+      return enviarDiasDisponiveis(telefone, (sessao.dados.paginaDias || 0) + 1);
+    }
+
     const indice = Number(texto) - 1;
     const data = sessao.dados.dias?.[indice];
 
@@ -226,7 +281,8 @@ export async function fluxoCliente(mensagem) {
     }
 
     const ocupados = await buscarHorariosOcupados(sessao.dados.barbeiro.id, data);
-    const livres = HORARIOS_PADRAO.filter((horario) => !ocupados.includes(horario));
+    const horariosDisponiveis = HORARIOS_PADRAO.filter((horario) => !ocupados.includes(horario));
+    const livres = filtrarHorariosFuturos(data, horariosDisponiveis);
 
     if (!livres.length) {
       return enviarMensagemTexto(telefone, 'Nao ha horarios livres nesse dia. Digite menu para voltar.');
