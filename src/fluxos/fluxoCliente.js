@@ -38,23 +38,24 @@ function criarListaInterativa({ texto, botao = 'Abrir menu', titulo = 'Opcoes', 
 
 function formatarData(data) {
   if (data instanceof Date) {
-    const partes = obterPartesDataHoraLocal(data);
-    return `${partes.day}/${partes.month}/${partes.year}`;
+    const dia = String(data.getUTCDate()).padStart(2, '0');
+    const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+    return `${dia}/${mes}`;
   }
 
   if (/^\d{4}-\d{2}-\d{2}/.test(String(data))) {
     const [ano, mes, dia] = String(data).slice(0, 10).split('-');
-    return `${dia}/${mes}/${ano}`;
+    return `${dia}/${mes}`;
   }
 
   const dataConvertida = new Date(data);
   if (!Number.isNaN(dataConvertida.getTime())) {
     const partes = obterPartesDataHoraLocal(dataConvertida);
-    return `${partes.day}/${partes.month}/${partes.year}`;
+    return `${partes.day}/${partes.month}`;
   }
 
   const [ano, mes, dia] = String(data).slice(0, 10).split('-');
-  return `${dia}/${mes}/${ano}`;
+  return `${dia}/${mes}`;
 }
 
 function obterPartesDataHoraLocal(data = new Date()) {
