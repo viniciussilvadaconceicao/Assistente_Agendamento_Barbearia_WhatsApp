@@ -371,6 +371,11 @@ export async function fluxoCliente(mensagem) {
       id: `horario_${indiceHorario + 1}`,
       title: horario
     }));
+    lista.push({
+      id: 'voltar_dias',
+      title: 'Voltar para dias'
+    });
+
     return enviarMensagemInterativa(telefone, criarListaInterativa({
       texto: '*Escolha o horario*',
       botao: 'Ver horarios',
@@ -380,6 +385,10 @@ export async function fluxoCliente(mensagem) {
   }
 
   if (sessao.etapa === 'escolhendo_horario') {
+    if (texto === 'voltar_dias') {
+      return enviarDiasDisponiveis(telefone, sessao.dados.paginaDias || 0);
+    }
+
     const indiceEscolhido = extrairIdComPrefixo(texto, 'horario_') ?? Number(texto);
     const indice = indiceEscolhido - 1;
     const horario = sessao.dados.horarios?.[indice];

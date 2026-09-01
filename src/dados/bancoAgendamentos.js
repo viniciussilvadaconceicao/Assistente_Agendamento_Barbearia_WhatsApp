@@ -69,6 +69,7 @@ export async function listarAgendamentosCliente(telefone) {
      JOIN servicos s ON s.id = a.servico_id
      WHERE c.telefone = $1
        AND a.status = 'agendado'
+       AND (a.data + a.horario) > (NOW() AT TIME ZONE 'America/Sao_Paulo')
      ORDER BY a.data, a.horario`,
     [telefone]
   );
