@@ -36,6 +36,15 @@ function criarListaInterativa({ texto, botao = 'Abrir menu', titulo = 'Opcoes', 
   };
 }
 
+function extrairIdComPrefixo(texto, prefixo) {
+  if (!String(texto).startsWith(prefixo)) {
+    return null;
+  }
+
+  const id = Number(String(texto).replace(prefixo, ''));
+  return Number.isInteger(id) ? id : null;
+}
+
 function formatarData(data) {
   if (data instanceof Date) {
     const dia = String(data.getUTCDate()).padStart(2, '0');
@@ -118,7 +127,7 @@ async function enviarDiasDisponiveis(telefone, paginaDias = 0) {
   const deslocamentoDias = paginaDias * 7;
   const dias = proximosDias(5, deslocamentoDias);
   const lista = dias.map((dia, indice) => ({
-    id: String(indice + 1),
+    id: `dia_${indice + 1}`,
     title: formatarData(dia)
   }));
 
@@ -145,11 +154,11 @@ async function enviarMenu(telefone) {
     botao: 'Abrir menu',
     titulo: 'Atendimento',
     linhas: [
-      { id: '1', title: '📅 Agendar horario' },
-      { id: '2', title: '💇‍♂️ Ver servicos' },
-      { id: '3', title: '⏰ Meus agendamentos' },
-      { id: '4', title: '❌ Cancelar agendamento' },
-      { id: '0', title: '🏠 Encerrar' }
+      { id: 'menu_agendar', title: '📅 Agendar horario' },
+      { id: 'menu_servicos', title: '💇‍♂️ Ver servicos' },
+      { id: 'menu_meus_agendamentos', title: '⏰ Meus agendamentos' },
+      { id: 'menu_cancelar', title: '❌ Cancelar agendamento' },
+      { id: 'nav_encerrar', title: '🏠 Encerrar' }
     ]
   }));
 }
@@ -167,7 +176,7 @@ async function enviarServicos(telefone) {
     botao: 'Ver servicos',
     titulo: 'Servicos',
     linhas: servicos.map((servico) => ({
-      id: String(servico.id),
+      id: `servico_${servico.id}`,
       title: limitarTitulo(servico.nome),
       description: `R$ ${Number(servico.preco).toFixed(2)}`
     }))
@@ -183,7 +192,7 @@ async function enviarBarbeirosParaAgendamento(telefone) {
   }
 
   const lista = barbeiros.map((barbeiro) => ({
-    id: String(barbeiro.id),
+    id: `barbeiro_${barbeiro.id}`,
     title: limitarTitulo(barbeiro.nome)
   }));
 
@@ -219,11 +228,11 @@ async function enviarOpcoesNavegacao(telefone) {
     titulo: 'Navegacao',
     linhas: [
       {
-        id: 'menu',
+        id: 'nav_menu',
         title: 'Voltar ao menu'
       },
       {
-        id: '0',
+        id: 'nav_encerrar',
         title: 'Encerrar'
       }
     ]
@@ -236,25 +245,25 @@ export async function fluxoCliente(mensagem) {
   const sessao = obterSessao(telefone);
   console.log('[Cliente]', { telefone, texto, etapa: sessao.etapa });
 
-  if (['menu', 'oi', 'ola', 'olá', 'inicio', 'início'].includes(texto.toLowerCase())) {
+  if (['menu', 'nav_menu', 'oi', 'ola', 'olá', 'inicio', 'início'].includes(texto.toLowerCase())) {
     return enviarMenu(telefone);
   }
 
-  if (texto === '0') {
+  if (texto === '0' || texto === 'nav_encerrar') {
     limparSessao(telefone);
     return enviarMensagemTexto(telefone, 'Atendimento encerrado. Obrigado!');
   }
 
   if (sessao.etapa === 'menu') {
-    if (texto === '1') {
+    if (texto === '1' || texto === 'menu_agendar') {
       return enviarBarbeirosParaAgendamento(telefone);
     }
 
-    if (texto === '2') {
+    if (texto === '2' || texto === 'menu_servicos') {
       return enviarServicosComoConsulta(telefone);
     }
 
-    if (texto === '3') {
+    if (texto === '3' || texto === 'menu_meus_agendamentos') {
       const agendamentos = await listarAgendamentosCliente(telefone);
 
       if (!agendamentos.length) {
@@ -270,7 +279,7 @@ export async function fluxoCliente(mensagem) {
       return enviarOpcoesNavegacao(telefone);
     }
 
-    if (texto === '4') {
+    if (texto === '4' || texto === 'menu_cancelar') {
       const agendamentos = await listarAgendamentosCliente(telefone);
 
       if (!agendamentos.length) {
@@ -280,7 +289,7 @@ export async function fluxoCliente(mensagem) {
 
       const lista = agendamentos
         .map((item) => ({
-          id: String(item.id),
+          id: `cancelar_${item.id}`,
           title: `ID ${item.id}`,
           description: `${formatarData(item.data)} as ${String(item.horario).slice(0, 5)} com ${item.barbeiro}`
         }));
@@ -298,13 +307,15 @@ export async function fluxoCliente(mensagem) {
   }
 
   if (sessao.etapa === 'cancelando_agendamento') {
-    const cancelado = await cancelarAgendamentoCliente(Number(texto), telefone);
+    const agendamentoId = extrairIdComPrefixo(texto, 'cancelar_') ?? Number(texto);
+    const cancelado = await cancelarAgendamentoCliente(agendamentoId, telefone);
     await enviarMensagemTexto(telefone, cancelado ? 'Agendamento cancelado com sucesso.' : 'Agendamento nao encontrado ou nao pertence ao seu telefone.');
     return enviarMenu(telefone);
   }
 
   if (sessao.etapa === 'escolhendo_servico') {
-    const servico = await buscarServicoPorId(Number(texto));
+    const servicoId = extrairIdComPrefixo(texto, 'servico_') ?? Number(texto);
+    const servico = await buscarServicoPorId(servicoId);
 
     if (!servico) {
       return enviarMensagemTexto(telefone, 'Servico nao encontrado. Digite um numero valido.');
@@ -320,7 +331,8 @@ export async function fluxoCliente(mensagem) {
   }
 
   if (sessao.etapa === 'escolhendo_barbeiro') {
-    const barbeiro = await buscarBarbeiroPorId(Number(texto));
+    const barbeiroId = extrairIdComPrefixo(texto, 'barbeiro_') ?? Number(texto);
+    const barbeiro = await buscarBarbeiroPorId(barbeiroId);
 
     if (!barbeiro) {
       return enviarMensagemTexto(telefone, 'Barbeiro nao encontrado. Digite um numero valido.');
@@ -336,7 +348,8 @@ export async function fluxoCliente(mensagem) {
       return enviarDiasDisponiveis(telefone, (sessao.dados.paginaDias || 0) + 1);
     }
 
-    const indice = Number(texto) - 1;
+    const indiceEscolhido = extrairIdComPrefixo(texto, 'dia_') ?? Number(texto);
+    const indice = indiceEscolhido - 1;
     const data = sessao.dados.dias?.[indice];
 
     if (!data) {
@@ -355,7 +368,7 @@ export async function fluxoCliente(mensagem) {
     atualizarEtapa(telefone, 'escolhendo_horario');
 
     const lista = livres.map((horario, indiceHorario) => ({
-      id: String(indiceHorario + 1),
+      id: `horario_${indiceHorario + 1}`,
       title: horario
     }));
     return enviarMensagemInterativa(telefone, criarListaInterativa({
@@ -367,7 +380,8 @@ export async function fluxoCliente(mensagem) {
   }
 
   if (sessao.etapa === 'escolhendo_horario') {
-    const indice = Number(texto) - 1;
+    const indiceEscolhido = extrairIdComPrefixo(texto, 'horario_') ?? Number(texto);
+    const indice = indiceEscolhido - 1;
     const horario = sessao.dados.horarios?.[indice];
 
     if (!horario) {
