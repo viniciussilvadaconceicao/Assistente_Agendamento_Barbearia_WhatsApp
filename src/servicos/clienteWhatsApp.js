@@ -6,11 +6,22 @@ function somenteNumeros(valor = '') {
 }
 
 export async function enviarMensagemTexto(telefone, texto) {
+  return enviarMensagemWhatsApp(telefone, {
+    type: 'text',
+    text: { body: texto }
+  });
+}
+
+export async function enviarMensagemInterativa(telefone, payload) {
+  return enviarMensagemWhatsApp(telefone, payload);
+}
+
+async function enviarMensagemWhatsApp(telefone, payload) {
   const token = process.env.WHATSAPP_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
   if (!token || !phoneNumberId) {
-    console.log('[WhatsApp simulado]', telefone, texto);
+    console.log('[WhatsApp simulado]', telefone, payload);
     return;
   }
 
@@ -21,8 +32,7 @@ export async function enviarMensagemTexto(telefone, texto) {
     {
       messaging_product: 'whatsapp',
       to: destino,
-      type: 'text',
-      text: { body: texto }
+      ...payload
     },
     {
       headers: {
@@ -32,3 +42,4 @@ export async function enviarMensagemTexto(telefone, texto) {
     }
   );
 }
+

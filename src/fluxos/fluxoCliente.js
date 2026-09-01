@@ -1,5 +1,5 @@
 import { obterSessao, atualizarEtapa, atualizarDados, limparSessao } from '../nucleo/contextoBot.js';
-import { enviarMensagemTexto } from '../servicos/clienteWhatsApp.js';
+import { enviarMensagemInterativa, enviarMensagemTexto } from '../servicos/clienteWhatsApp.js';
 import { listarServicos, buscarServicoPorId } from '../dados/bancoServicos.js';
 import { listarBarbeiros, buscarBarbeiroPorId } from '../dados/bancoBarbeiros.js';
 import { buscarOuCriarCliente } from '../dados/bancoClientes.js';
@@ -12,16 +12,27 @@ import {
 
 const HORARIOS_PADRAO = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
-function textoMenuCliente() {
-  return [
-    '*Barbearia Bot*',
-    '',
-    '1 - Agendar horario',
-    '2 - Ver servicos',
-    '3 - Meus agendamentos',
-    '4 - Cancelar agendamento',
-    '0 - Encerrar'
-  ].join('\n');
+function limitarTitulo(valor) {
+  return String(valor).slice(0, 24);
+}
+
+function criarListaInterativa({ texto, botao = 'Abrir menu', titulo = 'Opcoes', linhas }) {
+  return {
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      body: {
+        text: texto
+      },
+      action: {
+        button: botao,
+        sections: [{
+          title: titulo,
+          rows: linhas
+        }]
+      }
+    }
+  };
 }
 
 function formatarData(data) {
@@ -48,7 +59,18 @@ function proximosDias(quantidade = 5) {
 
 async function enviarMenu(telefone) {
   atualizarEtapa(telefone, 'menu');
-  await enviarMensagemTexto(telefone, textoMenuCliente());
+  await enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: '*Barbearia Bot*\n\nComo podemos ajudar?',
+    botao: 'Abrir menu',
+    titulo: 'Atendimento',
+    linhas: [
+      { id: '1', title: 'Agendar horario' },
+      { id: '2', title: 'Ver servicos' },
+      { id: '3', title: 'Meus agendamentos' },
+      { id: '4', title: 'Cancelar agendamento' },
+      { id: '0', title: 'Encerrar' }
+    ]
+  }));
 }
 
 async function enviarServicos(telefone) {
@@ -59,11 +81,16 @@ async function enviarServicos(telefone) {
     return enviarMenu(telefone);
   }
 
-  const texto = servicos
-    .map((servico) => `${servico.id} - ${servico.nome} | R$ ${Number(servico.preco).toFixed(2)}`)
-    .join('\n');
-
-  await enviarMensagemTexto(telefone, `*Servicos disponiveis:*\n\n${texto}`);
+  await enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: '*Servicos disponiveis*\n\nEscolha uma opcao para continuar.',
+    botao: 'Ver servicos',
+    titulo: 'Servicos',
+    linhas: servicos.map((servico) => ({
+      id: String(servico.id),
+      title: limitarTitulo(servico.nome),
+      description: `R$ ${Number(servico.preco).toFixed(2)}`
+    }))
+  }));
 }
 
 export async function fluxoCliente(mensagem) {
@@ -84,7 +111,7 @@ export async function fluxoCliente(mensagem) {
     if (texto === '1') {
       await enviarServicos(telefone);
       atualizarEtapa(telefone, 'escolhendo_servico');
-      return enviarMensagemTexto(telefone, '\nDigite o numero do servico desejado.');
+      return;
     }
 
     if (texto === '2') {
@@ -117,11 +144,19 @@ export async function fluxoCliente(mensagem) {
       }
 
       const lista = agendamentos
-        .map((item) => `${item.id} - ${formatarData(item.data)} as ${String(item.horario).slice(0, 5)} com ${item.barbeiro}`)
-        .join('\n');
+        .map((item) => ({
+          id: String(item.id),
+          title: `ID ${item.id}`,
+          description: `${formatarData(item.data)} as ${String(item.horario).slice(0, 5)} com ${item.barbeiro}`
+        }));
 
       atualizarEtapa(telefone, 'cancelando_agendamento');
-      return enviarMensagemTexto(telefone, `Digite o ID do agendamento para cancelar:\n\n${lista}`);
+      return enviarMensagemInterativa(telefone, criarListaInterativa({
+        texto: '*Cancelar agendamento*\n\nEscolha qual agendamento deseja cancelar.',
+        botao: 'Agendamentos',
+        titulo: 'Seus horarios',
+        linhas: lista
+      }));
     }
 
     return enviarMenu(telefone);
@@ -143,10 +178,18 @@ export async function fluxoCliente(mensagem) {
     atualizarDados(telefone, { servico });
 
     const barbeiros = await listarBarbeiros();
-    const lista = barbeiros.map((barbeiro) => `${barbeiro.id} - ${barbeiro.nome}`).join('\n');
+    const lista = barbeiros.map((barbeiro) => ({
+      id: String(barbeiro.id),
+      title: limitarTitulo(barbeiro.nome)
+    }));
 
     atualizarEtapa(telefone, 'escolhendo_barbeiro');
-    return enviarMensagemTexto(telefone, `Escolha o barbeiro:\n\n${lista}`);
+    return enviarMensagemInterativa(telefone, criarListaInterativa({
+      texto: '*Escolha o barbeiro*',
+      botao: 'Ver barbeiros',
+      titulo: 'Profissionais',
+      linhas: lista
+    }));
   }
 
   if (sessao.etapa === 'escolhendo_barbeiro') {
@@ -159,11 +202,19 @@ export async function fluxoCliente(mensagem) {
     atualizarDados(telefone, { barbeiro });
 
     const dias = proximosDias();
-    const lista = dias.map((dia, indice) => `${indice + 1} - ${formatarData(dia)}`).join('\n');
+    const lista = dias.map((dia, indice) => ({
+      id: String(indice + 1),
+      title: formatarData(dia)
+    }));
 
     atualizarDados(telefone, { dias });
     atualizarEtapa(telefone, 'escolhendo_dia');
-    return enviarMensagemTexto(telefone, `Escolha o dia:\n\n${lista}`);
+    return enviarMensagemInterativa(telefone, criarListaInterativa({
+      texto: '*Escolha o dia*',
+      botao: 'Ver dias',
+      titulo: 'Datas disponiveis',
+      linhas: lista
+    }));
   }
 
   if (sessao.etapa === 'escolhendo_dia') {
@@ -184,8 +235,16 @@ export async function fluxoCliente(mensagem) {
     atualizarDados(telefone, { data, horarios: livres });
     atualizarEtapa(telefone, 'escolhendo_horario');
 
-    const lista = livres.map((horario, indiceHorario) => `${indiceHorario + 1} - ${horario}`).join('\n');
-    return enviarMensagemTexto(telefone, `Escolha o horario:\n\n${lista}`);
+    const lista = livres.map((horario, indiceHorario) => ({
+      id: String(indiceHorario + 1),
+      title: horario
+    }));
+    return enviarMensagemInterativa(telefone, criarListaInterativa({
+      texto: '*Escolha o horario*',
+      botao: 'Ver horarios',
+      titulo: 'Horarios livres',
+      linhas: lista
+    }));
   }
 
   if (sessao.etapa === 'escolhendo_horario') {

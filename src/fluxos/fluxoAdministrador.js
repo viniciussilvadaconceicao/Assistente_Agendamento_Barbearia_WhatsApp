@@ -1,5 +1,5 @@
 import { obterSessao, atualizarEtapa, atualizarDados, limparSessao } from '../nucleo/contextoBot.js';
-import { enviarMensagemTexto } from '../servicos/clienteWhatsApp.js';
+import { enviarMensagemInterativa, enviarMensagemTexto } from '../servicos/clienteWhatsApp.js';
 import { listarBarbeiros, buscarBarbeiroPorId } from '../dados/bancoBarbeiros.js';
 import {
   listarAgendamentosPorData,
@@ -8,16 +8,23 @@ import {
   liberarHorario
 } from '../dados/bancoAgendamentos.js';
 
-function textoMenuAdmin() {
-  return [
-    '*Menu do Administrador*',
-    '',
-    '1 - Ver agenda por data',
-    '2 - Bloquear horario',
-    '3 - Liberar horario',
-    '4 - Cancelar agendamento',
-    '0 - Encerrar'
-  ].join('\n');
+function criarListaInterativa({ texto, botao = 'Abrir menu', titulo = 'Opcoes', linhas }) {
+  return {
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      body: {
+        text: texto
+      },
+      action: {
+        button: botao,
+        sections: [{
+          title: titulo,
+          rows: linhas
+        }]
+      }
+    }
+  };
 }
 
 function hojeIso() {
@@ -39,7 +46,18 @@ function horarioValido(texto) {
 
 async function enviarMenuAdmin(telefone) {
   atualizarEtapa(telefone, 'menu_admin');
-  await enviarMensagemTexto(telefone, textoMenuAdmin());
+  await enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: '*Menu do Administrador*\n\nEscolha uma opcao.',
+    botao: 'Abrir menu',
+    titulo: 'Administracao',
+    linhas: [
+      { id: '1', title: 'Ver agenda' },
+      { id: '2', title: 'Bloquear horario' },
+      { id: '3', title: 'Liberar horario' },
+      { id: '4', title: 'Cancelar agendamento' },
+      { id: '0', title: 'Encerrar' }
+    ]
+  }));
 }
 
 async function enviarListaBarbeiros(telefone, proximaEtapa) {
@@ -50,9 +68,17 @@ async function enviarListaBarbeiros(telefone, proximaEtapa) {
     return enviarMenuAdmin(telefone);
   }
 
-  const lista = barbeiros.map((barbeiro) => `${barbeiro.id} - ${barbeiro.nome}`).join('\n');
+  const lista = barbeiros.map((barbeiro) => ({
+    id: String(barbeiro.id),
+    title: String(barbeiro.nome).slice(0, 24)
+  }));
   atualizarEtapa(telefone, proximaEtapa);
-  return enviarMensagemTexto(telefone, `Escolha o barbeiro:\n\n${lista}`);
+  return enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: '*Escolha o barbeiro*',
+    botao: 'Ver barbeiros',
+    titulo: 'Profissionais',
+    linhas: lista
+  }));
 }
 
 export async function fluxoAdministrador(mensagem) {
