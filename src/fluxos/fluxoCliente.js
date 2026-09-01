@@ -37,6 +37,22 @@ function criarListaInterativa({ texto, botao = 'Abrir menu', titulo = 'Opcoes', 
 }
 
 function formatarData(data) {
+  if (data instanceof Date) {
+    const partes = obterPartesDataHoraLocal(data);
+    return `${partes.day}/${partes.month}/${partes.year}`;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(String(data))) {
+    const [ano, mes, dia] = String(data).slice(0, 10).split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  const dataConvertida = new Date(data);
+  if (!Number.isNaN(dataConvertida.getTime())) {
+    const partes = obterPartesDataHoraLocal(dataConvertida);
+    return `${partes.day}/${partes.month}/${partes.year}`;
+  }
+
   const [ano, mes, dia] = String(data).slice(0, 10).split('-');
   return `${dia}/${mes}/${ano}`;
 }
@@ -164,22 +180,36 @@ async function enviarServicosComoConsulta(telefone) {
     return enviarMensagemTexto(telefone, 'Nenhum servico cadastrado.');
   }
 
-  const linhas = servicos.map((servico) => ({
-    id: `servico_info_${servico.id}`,
-    title: limitarTitulo(servico.nome),
-    description: `R$ ${Number(servico.preco).toFixed(2)} - ${servico.duracao_minutos} min`
-  }));
+  const texto = servicos
+    .map((servico) => `- ${servico.nome}: R$ ${Number(servico.preco).toFixed(2)} (${servico.duracao_minutos} min)`)
+    .join('\n');
 
-  linhas.push({
-    id: 'menu',
-    title: 'Voltar ao menu'
-  });
+  await enviarMensagemTexto(telefone, `*Servicos disponiveis:*\n\n${texto}`);
 
   return enviarMensagemInterativa(telefone, criarListaInterativa({
-    texto: '*Servicos disponiveis*\n\nVeja os servicos da barbearia.',
-    botao: 'Ver servicos',
-    titulo: 'Servicos',
-    linhas
+    texto: 'Deseja voltar ao menu principal?',
+    botao: 'Opcoes',
+    titulo: 'Navegacao',
+    linhas: [
+      {
+        id: 'menu',
+        title: 'Voltar ao menu'
+      }
+    ]
+  }));
+}
+
+async function enviarOpcaoVoltarMenu(telefone) {
+  return enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: 'Deseja voltar ao menu principal?',
+    botao: 'Opcoes',
+    titulo: 'Navegacao',
+    linhas: [
+      {
+        id: 'menu',
+        title: 'Voltar ao menu'
+      }
+    ]
   }));
 }
 
@@ -213,7 +243,7 @@ export async function fluxoCliente(mensagem) {
 
       if (!agendamentos.length) {
         await enviarMensagemTexto(telefone, 'Voce ainda nao possui agendamentos.');
-        return enviarMenu(telefone);
+        return enviarOpcaoVoltarMenu(telefone);
       }
 
       const lista = agendamentos
@@ -221,7 +251,7 @@ export async function fluxoCliente(mensagem) {
         .join('\n');
 
       await enviarMensagemTexto(telefone, `*Seus agendamentos:*\n\n${lista}`);
-      return enviarMenu(telefone);
+      return enviarOpcaoVoltarMenu(telefone);
     }
 
     if (texto === '4') {
