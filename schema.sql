@@ -35,6 +35,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_horario_ocupado
 ON agendamentos (barbeiro_id, data, horario)
 WHERE status IN ('agendado', 'bloqueado');
 
+CREATE TABLE IF NOT EXISTS mensagens_processadas (
+  id VARCHAR(255) PRIMARY KEY,
+  telefone VARCHAR(20),
+  criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 INSERT INTO barbeiros (nome, telefone)
 VALUES
   ('Victor', '5522999999999'),

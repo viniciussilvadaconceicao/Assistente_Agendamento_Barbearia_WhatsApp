@@ -1,8 +1,9 @@
 import crypto from 'crypto';
+import {
+  registrarMensagemProcessada,
+  removerMensagemProcessada
+} from '../dados/bancoMensagensProcessadas.js';
 import { rotearFluxo } from './roteadorFluxo.js';
-
-const mensagensProcessadas = new Set();
-const LIMITE_MENSAGENS_PROCESSADAS = 500;
 
 function extrairTexto(message) {
   return (
@@ -73,21 +74,27 @@ export async function receberMensagem(req, res) {
           const idMensagem = message?.id;
 
           if (!telefone || !texto) continue;
-          if (idMensagem && mensagensProcessadas.has(idMensagem)) continue;
+          if (!idMensagem) {
+            console.warn('[Webhook] Mensagem sem ID ignorada.');
+            continue;
+          }
 
-          await rotearFluxo({
-            de: telefone,
-            texto,
-            id: idMensagem
-          });
+          const mensagemNova = await registrarMensagemProcessada(idMensagem, telefone);
 
-          if (idMensagem) {
-            mensagensProcessadas.add(idMensagem);
+          if (!mensagemNova) {
+            console.log(`[Webhook] Mensagem duplicada ignorada: ${idMensagem}`);
+            continue;
+          }
 
-            if (mensagensProcessadas.size > LIMITE_MENSAGENS_PROCESSADAS) {
-              const [primeiroId] = mensagensProcessadas;
-              mensagensProcessadas.delete(primeiroId);
-            }
+          try {
+            await rotearFluxo({
+              de: telefone,
+              texto,
+              id: idMensagem
+            });
+          } catch (erro) {
+            await removerMensagemProcessada(idMensagem);
+            throw erro;
           }
         }
       }
