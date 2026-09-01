@@ -3,7 +3,7 @@ import { enviarMensagemTexto } from '../servicos/clienteWhatsApp.js';
 import { listarBarbeiros, buscarBarbeiroPorId } from '../dados/bancoBarbeiros.js';
 import {
   listarAgendamentosPorData,
-  cancelarAgendamento,
+  cancelarAgendamentoAdministrador,
   bloquearHorario,
   liberarHorario
 } from '../dados/bancoAgendamentos.js';
@@ -118,8 +118,8 @@ export async function fluxoAdministrador(mensagem) {
   }
 
   if (sessao.etapa === 'cancelamento_id') {
-    const cancelado = await cancelarAgendamento(Number(texto));
-    await enviarMensagemTexto(telefone, cancelado ? 'Agendamento cancelado.' : 'Agendamento nao encontrado.');
+    const cancelado = await cancelarAgendamentoAdministrador(Number(texto));
+    await enviarMensagemTexto(telefone, cancelado ? 'Agendamento cancelado.' : 'Agendamento nao encontrado ou ja cancelado.');
     return enviarMenuAdmin(telefone);
   }
 

@@ -76,11 +76,28 @@ export async function listarAgendamentosCliente(telefone) {
   return resultado.rows;
 }
 
-export async function cancelarAgendamento(id) {
+export async function cancelarAgendamentoCliente(id, telefone) {
+  const resultado = await pool.query(
+    `UPDATE agendamentos a
+     SET status = 'cancelado'
+     FROM clientes c
+     WHERE a.cliente_id = c.id
+       AND a.id = $1
+       AND c.telefone = $2
+       AND a.status = 'agendado'
+     RETURNING a.id`,
+    [id, telefone]
+  );
+
+  return resultado.rowCount > 0;
+}
+
+export async function cancelarAgendamentoAdministrador(id) {
   const resultado = await pool.query(
     `UPDATE agendamentos
      SET status = 'cancelado'
      WHERE id = $1
+       AND status = 'agendado'
      RETURNING id`,
     [id]
   );

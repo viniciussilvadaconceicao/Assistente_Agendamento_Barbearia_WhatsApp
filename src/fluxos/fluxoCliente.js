@@ -7,7 +7,7 @@ import {
   buscarHorariosOcupados,
   criarAgendamento,
   listarAgendamentosCliente,
-  cancelarAgendamento
+  cancelarAgendamentoCliente
 } from '../dados/bancoAgendamentos.js';
 
 const HORARIOS_PADRAO = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
@@ -128,8 +128,8 @@ export async function fluxoCliente(mensagem) {
   }
 
   if (sessao.etapa === 'cancelando_agendamento') {
-    const cancelado = await cancelarAgendamento(Number(texto));
-    await enviarMensagemTexto(telefone, cancelado ? 'Agendamento cancelado com sucesso.' : 'Agendamento nao encontrado.');
+    const cancelado = await cancelarAgendamentoCliente(Number(texto), telefone);
+    await enviarMensagemTexto(telefone, cancelado ? 'Agendamento cancelado com sucesso.' : 'Agendamento nao encontrado ou nao pertence ao seu telefone.');
     return enviarMenu(telefone);
   }
 
