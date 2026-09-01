@@ -1,5 +1,8 @@
 import { rotearFluxo } from './roteadorFluxo.js';
 
+const mensagensProcessadas = new Set();
+const LIMITE_MENSAGENS_PROCESSADAS = 500;
+
 function extrairTexto(message) {
   return (
     message?.text?.body ||
@@ -34,14 +37,25 @@ export async function receberMensagem(req, res) {
         for (const message of mensagens) {
           const texto = extrairTexto(message);
           const telefone = message?.from;
+          const idMensagem = message?.id;
 
           if (!telefone || !texto) continue;
+          if (idMensagem && mensagensProcessadas.has(idMensagem)) continue;
 
           await rotearFluxo({
             de: telefone,
             texto,
-            id: message.id
+            id: idMensagem
           });
+
+          if (idMensagem) {
+            mensagensProcessadas.add(idMensagem);
+
+            if (mensagensProcessadas.size > LIMITE_MENSAGENS_PROCESSADAS) {
+              const [primeiroId] = mensagensProcessadas;
+              mensagensProcessadas.delete(primeiroId);
+            }
+          }
         }
       }
     }

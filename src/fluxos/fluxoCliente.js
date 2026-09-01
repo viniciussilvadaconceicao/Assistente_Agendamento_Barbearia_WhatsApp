@@ -174,6 +174,28 @@ async function enviarServicos(telefone) {
   }));
 }
 
+async function enviarBarbeirosParaAgendamento(telefone) {
+  const barbeiros = await listarBarbeiros();
+
+  if (!barbeiros.length) {
+    await enviarMensagemTexto(telefone, 'Nenhum barbeiro cadastrado.');
+    return enviarMenu(telefone);
+  }
+
+  const lista = barbeiros.map((barbeiro) => ({
+    id: String(barbeiro.id),
+    title: limitarTitulo(barbeiro.nome)
+  }));
+
+  atualizarEtapa(telefone, 'escolhendo_barbeiro');
+  return enviarMensagemInterativa(telefone, criarListaInterativa({
+    texto: '*Escolha o barbeiro*',
+    botao: 'Ver barbeiros',
+    titulo: 'Profissionais',
+    linhas: lista
+  }));
+}
+
 async function enviarServicosComoConsulta(telefone) {
   const servicos = await listarServicos();
 
@@ -212,6 +234,7 @@ export async function fluxoCliente(mensagem) {
   const telefone = mensagem.de;
   const texto = mensagem.texto.trim();
   const sessao = obterSessao(telefone);
+  console.log('[Cliente]', { telefone, texto, etapa: sessao.etapa });
 
   if (['menu', 'oi', 'ola', 'olá', 'inicio', 'início'].includes(texto.toLowerCase())) {
     return enviarMenu(telefone);
@@ -224,9 +247,7 @@ export async function fluxoCliente(mensagem) {
 
   if (sessao.etapa === 'menu') {
     if (texto === '1') {
-      await enviarServicos(telefone);
-      atualizarEtapa(telefone, 'escolhendo_servico');
-      return;
+      return enviarBarbeirosParaAgendamento(telefone);
     }
 
     if (texto === '2') {
@@ -290,20 +311,12 @@ export async function fluxoCliente(mensagem) {
     }
 
     atualizarDados(telefone, { servico });
+    atualizarEtapa(telefone, 'informando_nome');
 
-    const barbeiros = await listarBarbeiros();
-    const lista = barbeiros.map((barbeiro) => ({
-      id: String(barbeiro.id),
-      title: limitarTitulo(barbeiro.nome)
-    }));
-
-    atualizarEtapa(telefone, 'escolhendo_barbeiro');
-    return enviarMensagemInterativa(telefone, criarListaInterativa({
-      texto: '*Escolha o barbeiro*',
-      botao: 'Ver barbeiros',
-      titulo: 'Profissionais',
-      linhas: lista
-    }));
+    return enviarMensagemTexto(
+      telefone,
+      `Para confirmar o horario de ${formatarData(sessao.dados.data)} as ${sessao.dados.horario}, digite seu nome completo.`
+    );
   }
 
   if (sessao.etapa === 'escolhendo_barbeiro') {
@@ -362,9 +375,9 @@ export async function fluxoCliente(mensagem) {
     }
 
     atualizarDados(telefone, { horario });
-    atualizarEtapa(telefone, 'informando_nome');
-
-    return enviarMensagemTexto(telefone, 'Para confirmar, digite seu nome completo.');
+    await enviarServicos(telefone);
+    atualizarEtapa(telefone, 'escolhendo_servico');
+    return;
   }
 
   if (sessao.etapa === 'informando_nome') {
